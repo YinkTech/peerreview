@@ -5,7 +5,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -85,10 +87,12 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    // Set persistence to LOCAL
+    setPersistence(auth, browserLocalPersistence);
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Get additional user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
@@ -96,7 +100,8 @@ export function AuthProvider({ children }) {
               ...user,
               fullName: userData.fullName,
               role: userData.role,
-              groupId: userData.groupId
+              groupId: userData.groupId,
+              preferences: userData.preferences
             });
             setUserRole(userData.role);
           }
