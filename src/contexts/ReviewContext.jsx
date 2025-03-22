@@ -60,9 +60,32 @@ export function ReviewProvider({ children }) {
     }
   }
 
+  async function getUserReviews(userId, groupId) {
+    if (!userId || !groupId) return [];
+    
+    try {
+      const reviewsRef = collection(db, 'reviews');
+      const q = query(
+        reviewsRef,
+        where('groupId', '==', groupId),
+        where('reviewedUserId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error fetching user reviews:', error);
+      return [];
+    }
+  }
+
   const value = {
     submitReview,
     getGroupReviews,
+    getUserReviews,
     error,
     loading
   };

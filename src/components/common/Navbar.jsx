@@ -30,6 +30,11 @@ export default function Navbar() {
     { name: 'Profile', path: '/profile' },
   ];
 
+  // Add Review menu item only for students
+  if (userRole === 'student') {
+    navItems.push({ name: 'Review', path: '/review' });
+  }
+
   return (
     <motion.nav
       initial={{ y: -100 }}

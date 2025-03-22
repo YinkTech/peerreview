@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Review from './pages/Review';
+import NotFound from './pages/NotFound';
 import { useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Profile from './pages/Profile';
@@ -53,6 +54,24 @@ const PrivateRoute = ({ children }) => {
   return currentUser ? children : <Navigate to="/login" />;
 }
 
+const StudentRoute = ({ children }) => {
+  const { currentUser, userRole, loading } = useAuth();
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  
+  if (!currentUser) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (userRole !== 'student') {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
+}
+
 function App() {
   return (
     <>
@@ -79,11 +98,11 @@ function App() {
                     <Route
                       path="/review"
                       element={
-                        <PrivateRoute>
+                        <StudentRoute>
                           <DashboardLayout>
                             <Review />
                           </DashboardLayout>
-                        </PrivateRoute>
+                        </StudentRoute>
                       }
                     />
                     <Route
@@ -97,6 +116,7 @@ function App() {
                       }
                     />
                     <Route path="/" element={<Navigate to="/dashboard" />} />
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </ReviewProvider>
               </Router>
