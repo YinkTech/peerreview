@@ -4,7 +4,7 @@ import { useReview } from '../../contexts/ReviewContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../common/Button';
 import { db } from '../../config/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 
 export default function ReviewForm() {
   const { submitReview, loading, error: reviewError } = useReview();
@@ -20,6 +20,7 @@ export default function ReviewForm() {
   const [groupMembers, setGroupMembers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
+  const [reviewedToday, setReviewedToday] = useState([]);
 
   // Don't render anything if user is not assigned to a group
   if (!currentUser?.groupId || currentUser.groupId === 'new') {
@@ -31,6 +32,10 @@ export default function ReviewForm() {
     const fetchGroupMembers = async () => {
       try {
         setIsLoadingMembers(true);
+        setError('');
+
+        console.log('Fetching group members for group:', currentUser.groupId);
+
         // Query users collection for members in the same group
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('groupId', '==', currentUser.groupId));
@@ -42,18 +47,53 @@ export default function ReviewForm() {
           ...doc.data()
         }));
 
+        console.log('Found group members:', members.length);
+
         // Filter out the current user from the list
-        setGroupMembers(members.filter(member => member.id !== currentUser.uid));
+        const filteredMembers = members.filter(member => member.id !== currentUser.uid);
+        setGroupMembers(filteredMembers);
+
+        // Check which users have been reviewed today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        console.log('Fetching today\'s reviews for user:', currentUser.uid);
+        
+        // First get all reviews for the current user
+        const reviewsRef = collection(db, 'reviews');
+        const reviewsQuery = query(
+          reviewsRef,
+          where('reviewerId', '==', currentUser.uid)
+        );
+        
+        const reviewsSnapshot = await getDocs(reviewsQuery);
+        const reviews = reviewsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // Filter reviews from today in memory
+        const todayReviews = reviews.filter(review => {
+          const reviewDate = review.timestamp?.toDate() || new Date(review.createdAt);
+          return reviewDate >= today;
+        });
+
+        const reviewedUserIds = todayReviews.map(review => review.reviewedUserId);
+        
+        console.log('Found reviews for today:', reviewedUserIds.length);
+        setReviewedToday(reviewedUserIds);
       } catch (err) {
-        console.error('Error fetching group members:', err);
-        setError('Failed to load group members');
+        console.error('Error in fetchGroupMembers:', err);
+        setError(`Failed to load group members: ${err.message}`);
       } finally {
         setIsLoadingMembers(false);
       }
     };
 
-    fetchGroupMembers();
-  }, [currentUser.groupId, currentUser.uid]);
+    if (currentUser?.groupId && currentUser.groupId !== 'new') {
+      fetchGroupMembers();
+    }
+  }, [currentUser?.groupId, currentUser?.uid]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -72,6 +112,8 @@ export default function ReviewForm() {
     }
 
     try {
+      console.log('Submitting review for user:', selectedUser);
+      
       await submitReview({
         ...ratings,
         feedback,
@@ -92,6 +134,9 @@ export default function ReviewForm() {
         teamwork: 3
       });
       
+      // Update the reviewedToday list
+      setReviewedToday(prev => [...prev, selectedUser]);
+      
       setTimeout(() => setSuccess(false), 3000); // Clear success message after 3 seconds
     } catch (err) {
       console.error('Error in handleSubmit:', err);
@@ -110,6 +155,9 @@ export default function ReviewForm() {
       </div>
     );
   }
+
+  // Filter out users that have already been reviewed today
+  const availableMembers = groupMembers.filter(member => !reviewedToday.includes(member.id));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -137,12 +185,17 @@ export default function ReviewForm() {
           className="w-full p-2 border rounded focus:ring-2 focus:ring-black focus:outline-none"
         >
           <option value="">Choose a user...</option>
-          {groupMembers.map((member) => (
+          {availableMembers.map((member) => (
             <option key={member.id} value={member.id}>
               {member.fullName || member.email}
             </option>
           ))}
         </select>
+        {availableMembers.length === 0 && (
+          <p className="text-sm text-gray-500 mt-2">
+            You have already submitted reviews for all available group members today.
+          </p>
+        )}
       </div>
 
       {Object.entries(ratings).map(([category, value]) => (
@@ -176,7 +229,7 @@ export default function ReviewForm() {
 
       <Button 
         type="submit" 
-        disabled={loading || !currentUser?.groupId || !selectedUser}
+        disabled={loading || !currentUser?.groupId || !selectedUser || availableMembers.length === 0}
         className={`w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         {loading ? 'Submitting...' : 'Submit Review'}

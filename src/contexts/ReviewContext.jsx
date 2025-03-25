@@ -13,16 +13,91 @@ export function ReviewProvider({ children }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  async function hasSubmittedReviewToday(reviewerId, reviewedUserId) {
+    if (!reviewerId || !reviewedUserId) {
+      console.error('Missing required parameters:', { reviewerId, reviewedUserId });
+      throw new Error('Missing required parameters for review check');
+    }
+
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      console.log('Checking reviews for:', {
+        reviewerId,
+        reviewedUserId,
+        today: today.toISOString()
+      });
+
+      const reviewsRef = collection(db, 'reviews');
+      const q = query(
+        reviewsRef,
+        where('reviewerId', '==', reviewerId),
+        where('reviewedUserId', '==', reviewedUserId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const reviews = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Filter reviews from today in memory
+      const todayReviews = reviews.filter(review => {
+        const reviewDate = review.timestamp?.toDate() || new Date(review.createdAt);
+        return reviewDate >= today;
+      });
+      
+      const hasSubmitted = todayReviews.length > 0;
+      
+      console.log('Review check result:', {
+        hasSubmitted,
+        count: todayReviews.length
+      });
+      
+      return hasSubmitted;
+    } catch (err) {
+      console.error('Error in hasSubmittedReviewToday:', err);
+      throw new Error(`Failed to check daily review limit: ${err.message}`);
+    }
+  }
+
   async function submitReview(reviewData) {
+    if (!reviewData) {
+      throw new Error('Review data is required');
+    }
+
     setLoading(true);
     setError('');
+    
     try {
+      // Validate required fields
+      const requiredFields = ['groupId', 'reviewerId', 'reviewedUserId'];
+      const missingFields = requiredFields.filter(field => !reviewData[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
       // Check if user has a groupId
       if (!reviewData.groupId) {
         throw new Error('You must be assigned to a group to submit reviews');
       }
 
-      console.log('Submitting review:', reviewData);
+      console.log('Submitting review with data:', {
+        ...reviewData,
+        timestamp: new Date().toISOString()
+      });
+
+      // Check if user has already submitted a review for this user today
+      const hasSubmitted = await hasSubmittedReviewToday(
+        reviewData.reviewerId,
+        reviewData.reviewedUserId
+      );
+
+      if (hasSubmitted) {
+        throw new Error('You have already submitted a review for this user today');
+      }
 
       const reviewRef = await addDoc(collection(db, 'reviews'), {
         ...reviewData,
@@ -34,16 +109,20 @@ export function ReviewProvider({ children }) {
       console.log('Review submitted successfully:', reviewRef.id);
       return reviewRef.id;
     } catch (err) {
-      console.error('Error submitting review:', err);
-      setError('Failed to submit review');
-      throw err;
+      console.error('Error in submitReview:', err);
+      const errorMessage = err.message || 'Failed to submit review';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
   }
 
   async function getGroupReviews(groupId) {
-    if (!groupId) return [];
+    if (!groupId) {
+      console.warn('getGroupReviews called without groupId');
+      return [];
+    }
     
     try {
       const reviewsRef = collection(db, 'reviews');
@@ -55,13 +134,16 @@ export function ReviewProvider({ children }) {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error fetching group reviews:', error);
+      console.error('Error in getGroupReviews:', error);
       return [];
     }
   }
 
   async function getUserReviews(userId, groupId) {
-    if (!userId || !groupId) return [];
+    if (!userId || !groupId) {
+      console.warn('getUserReviews called with missing parameters:', { userId, groupId });
+      return [];
+    }
     
     try {
       const reviewsRef = collection(db, 'reviews');
@@ -77,7 +159,7 @@ export function ReviewProvider({ children }) {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error fetching user reviews:', error);
+      console.error('Error in getUserReviews:', error);
       return [];
     }
   }
