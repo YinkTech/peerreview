@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import StudentDashboard from '../components/dashboard/StudentDashboard';
 import TeacherDashboard from '../components/dashboard/TeacherDashboard';
 import Loading from '../components/common/Loading';
-import Navbar from '../components/common/Navbar';
 
 export default function Dashboard() {
   const { userRole, loading } = useAuth();

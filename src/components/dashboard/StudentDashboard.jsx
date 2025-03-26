@@ -121,7 +121,7 @@ export default function StudentDashboard() {
             transition={{ delay: 0.2 }}
             className="bg-white rounded-2xl shadow-lg p-8"
           >
-            <h3 className="text-xl font-semibold mb-6">Your Reviews</h3>
+            <h3 className="text-xl font-semibold mb-6">Your Recently Submitted Reviews</h3>
             {loading ? (
               <div className="flex justify-center">
                 <motion.div

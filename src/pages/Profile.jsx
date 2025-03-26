@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { toast } from 'react-hot-toast';
-import { useTheme } from '../contexts/ThemeContext';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -26,15 +25,13 @@ const itemVariants = {
 
 export default function Profile() {
   const { currentUser, userRole } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: currentUser?.fullName || '',
     email: currentUser?.email || '',
     bio: currentUser?.bio || '',
     preferences: {
-      emailNotifications: currentUser?.preferences?.emailNotifications ?? true,
-      darkMode: currentUser?.preferences?.darkMode ?? false
+      emailNotifications: currentUser?.preferences?.emailNotifications ?? true
     }
   });
   const [loading, setLoading] = useState(false);
@@ -47,8 +44,7 @@ export default function Profile() {
         email: currentUser.email || '',
         bio: currentUser.bio || '',
         preferences: {
-          emailNotifications: currentUser?.preferences?.emailNotifications ?? true,
-          darkMode: currentUser?.preferences?.darkMode ?? false
+          emailNotifications: currentUser?.preferences?.emailNotifications ?? true
         }
       }));
     }
@@ -57,9 +53,6 @@ export default function Profile() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (type === 'checkbox') {
-      if (name === 'darkMode') {
-        toggleDarkMode(checked);
-      }
       setFormData(prev => ({
         ...prev,
         preferences: {
@@ -159,10 +152,10 @@ export default function Profile() {
       </motion.div>
 
       {/* Main Content */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
         <motion.div variants={itemVariants} className="p-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-semibold text-gray-900">
               Profile Information
             </h2>
             <motion.button
@@ -178,7 +171,7 @@ export default function Profile() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <motion.div variants={itemVariants}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
                 </label>
                 {isEditing ? (
@@ -187,22 +180,22 @@ export default function Profile() {
                     name="fullName"
                     value={formData.fullName}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{formData.fullName}</p>
+                  <p className="text-gray-900">{formData.fullName}</p>
                 )}
               </motion.div>
 
               <motion.div variants={itemVariants}>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
                 </label>
-                <p className="text-gray-900 dark:text-white">{formData.email}</p>
+                <p className="text-gray-900">{formData.email}</p>
               </motion.div>
 
               <motion.div variants={itemVariants} className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Bio
                 </label>
                 {isEditing ? (
@@ -211,17 +204,17 @@ export default function Profile() {
                     value={formData.bio}
                     onChange={handleChange}
                     rows="4"
-                    className="w-full px-4 py-2 rounded-lg border dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Tell us about yourself..."
                   />
                 ) : (
-                  <p className="text-gray-900 dark:text-white">{formData.bio || 'No bio added yet.'}</p>
+                  <p className="text-gray-900">{formData.bio || 'No bio added yet.'}</p>
                 )}
               </motion.div>
             </div>
 
             <motion.div variants={itemVariants} className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Preferences</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Preferences</h3>
               <div className="space-y-4">
                 <label className="flex items-center space-x-3">
                   <input
@@ -232,18 +225,7 @@ export default function Profile() {
                     disabled={!isEditing}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <span className="text-gray-700 dark:text-gray-200">Email Notifications</span>
-                </label>
-
-                <label className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    name="darkMode"
-                    checked={darkMode}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="text-gray-700 dark:text-gray-200">Dark Mode</span>
+                  <span className="text-gray-700">Email Notifications</span>
                 </label>
               </div>
             </motion.div>

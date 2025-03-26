@@ -12,12 +12,11 @@ import { useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Profile from './pages/Profile';
 import DashboardLayout from './components/layout/DashboardLayout';
-import { ThemeProvider } from './contexts/ThemeContext';
 
 // Loading component
 const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-    <div className="text-gray-900 dark:text-white">Loading...</div>
+  <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="text-gray-900">Loading...</div>
   </div>
 );
 
@@ -79,48 +78,46 @@ function App() {
       <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
           <AuthProvider>
-            <ThemeProvider>
-              <Router>
-                <ReviewProvider>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route
-                      path="/dashboard"
-                      element={
-                        <PrivateRoute>
-                          <DashboardLayout>
-                            <Dashboard />
-                          </DashboardLayout>
-                        </PrivateRoute>
-                      }
-                    />
-                    <Route
-                      path="/review"
-                      element={
-                        <StudentRoute>
-                          <DashboardLayout>
-                            <Review />
-                          </DashboardLayout>
-                        </StudentRoute>
-                      }
-                    />
-                    <Route
-                      path="/profile"
-                      element={
-                        <PrivateRoute>
-                          <DashboardLayout>
-                            <Profile />
-                          </DashboardLayout>
-                        </PrivateRoute>
-                      }
-                    />
-                    <Route path="/" element={<Navigate to="/dashboard" />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </ReviewProvider>
-              </Router>
-            </ThemeProvider>
+            <Router>
+              <ReviewProvider>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <PrivateRoute>
+                        <DashboardLayout>
+                          <Dashboard />
+                        </DashboardLayout>
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/review"
+                    element={
+                      <StudentRoute>
+                        <DashboardLayout>
+                          <Review />
+                        </DashboardLayout>
+                      </StudentRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile"
+                    element={
+                      <PrivateRoute>
+                        <DashboardLayout>
+                          <Profile />
+                        </DashboardLayout>
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="/" element={<Navigate to="/dashboard" />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ReviewProvider>
+            </Router>
           </AuthProvider>
         </Suspense>
       </ErrorBoundary>
