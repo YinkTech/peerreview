@@ -1,7 +1,8 @@
 // src/components/dashboard/TeacherDashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { db } from '../../config/firebase';
-import { collection, query, getDocs, doc, updateDoc, where, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, where, addDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { getAuth, deleteUser } from 'firebase/auth';
 import Loading from '../common/Loading';
 import CreateGroupModal from './CreateGroupModal';
@@ -48,6 +49,7 @@ const itemVariants = {
 
 export default function TeacherDashboard() {
   const [groups, setGroups] = useState([]);
+  const [recentGroups, setRecentGroups] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState('');
@@ -57,12 +59,17 @@ export default function TeacherDashboard() {
   const [selectedGroupReviews, setSelectedGroupReviews] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
+  const navigate = useNavigate();
 
   // Fetch both groups and their reviews
   const fetchGroupsWithReviews = async () => {
     try {
       // First get all groups
-      const groupsSnapshot = await getDocs(collection(db, 'groups'));
+      const groupsQuery = query(
+        collection(db, 'groups'),
+        orderBy('createdAt', 'desc')
+      );
+      const groupsSnapshot = await getDocs(groupsQuery);
       const groupsData = groupsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -93,6 +100,8 @@ export default function TeacherDashboard() {
       }
 
       setGroups(groupsData);
+      // Get the 2 most recent groups
+      setRecentGroups(groupsData.slice(0, 2));
     } catch (error) {
       console.error('Error fetching groups and reviews:', error);
     }
@@ -130,25 +139,38 @@ export default function TeacherDashboard() {
 
   const handleCreateGroup = async (groupName) => {
     try {
+      // Create a timestamp for the new group
+      const createdAt = new Date().toISOString();
+      
+      // Add the new group to Firestore
       const newGroupRef = await addDoc(collection(db, 'groups'), {
         name: groupName,
-        createdAt: new Date().toISOString(),
+        createdAt: createdAt,
         averageParticipation: 0,
         averagePunctuality: 0,
         averageTeamwork: 0,
         members: []
       });
 
+      // Create the new group object with the Firestore ID
       const newGroup = {
         id: newGroupRef.id,
         name: groupName,
+        createdAt: createdAt,
         averageParticipation: 0,
         averagePunctuality: 0,
         averageTeamwork: 0,
         members: []
       };
 
-      setGroups(prevGroups => [...prevGroups, newGroup]);
+      // Update both the groups and recentGroups state
+      setGroups(prevGroups => [newGroup, ...prevGroups]);
+      setRecentGroups(prevGroups => [newGroup, ...prevGroups].slice(0, 2));
+      
+      // Close the modal by setting isCreateModalOpen to false
+      setIsCreateModalOpen(false);
+      
+      // Show a success message
       toast.success('Group created successfully!');
     } catch (error) {
       console.error('Error creating group:', error);
@@ -219,6 +241,7 @@ export default function TeacherDashboard() {
       
       // Update local state
       setGroups(groups.filter(g => g.id !== groupId));
+      setRecentGroups(recentGroups.filter(g => g.id !== groupId));
       setStudents(students.map(s => 
         s.groupId === groupId ? { ...s, groupId: null } : s
       ));
@@ -249,21 +272,27 @@ export default function TeacherDashboard() {
     return students.filter(student => !student.groupId);
   };
 
-  // Add search and sort functions
+  // Filter and sort students
   const filteredAndSortedStudents = useMemo(() => {
-    let filtered = students.filter(student => {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        student.fullName?.toLowerCase().includes(searchLower) ||
-        student.email.toLowerCase().includes(searchLower)
+    let filtered = [...students];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(student => 
+        (student.fullName && student.fullName.toLowerCase().includes(searchTerm.toLowerCase())) || 
+        (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase()))
       );
-    });
-
+    }
+    
+    // Apply sort
     return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      
       if (sortOrder === 'newest') {
-        return new Date(b.createdAt) - new Date(a.createdAt);
+        return dateB - dateA;
       } else {
-        return new Date(a.createdAt) - new Date(b.createdAt);
+        return dateA - dateB;
       }
     });
   }, [students, searchTerm, sortOrder]);
@@ -325,18 +354,29 @@ export default function TeacherDashboard() {
       
       {/* Groups Section */}
       <motion.div className="mb-8" variants={itemVariants}>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6">
           <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Groups
+            Recent Groups
           </h3>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-          >
-            Create New Group
-          </motion.button>
+          <div className="flex space-x-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsCreateModalOpen(true)}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              Create New Group
+            </motion.button>
+            <Link to="/all-groups">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white border border-blue-500 text-blue-500 px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                View All Groups
+              </motion.button>
+            </Link>
+          </div>
         </div>
 
         <motion.div 
@@ -355,17 +395,22 @@ export default function TeacherDashboard() {
               </span>
             </div>
             <div className="mt-4">
-              {getUnassignedStudents().map(student => (
+              {getUnassignedStudents().slice(0, 5).map(student => (
                 <div key={student.id} className="text-sm text-gray-600 py-1">
                   {student.fullName || student.email}
                 </div>
               ))}
+              {getUnassignedStudents().length > 5 && (
+                <div className="text-sm text-blue-500 mt-2">
+                  + {getUnassignedStudents().length - 5} more students
+                </div>
+              )}
             </div>
           </motion.div>
 
-          {/* Regular Groups */}
+          {/* Recent Groups (limit to 2) */}
           <AnimatePresence>
-            {groups.map(group => (
+            {recentGroups.map(group => (
               <motion.div
                 key={group.id}
                 variants={itemVariants}
@@ -416,60 +461,66 @@ export default function TeacherDashboard() {
       </motion.div>
 
       {/* Student Assignment Section */}
-      <motion.div 
-        variants={itemVariants}
-        className="bg-white rounded-2xl shadow-lg p-8"
-      >
-        <h3 className="text-xl font-semibold mb-4">Assign Students to Groups</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block mb-2">Select Student</label>
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Choose a student...</option>
-              {students.map(student => (
-                <option key={student.id} value={student.id}>
-                  {student.fullName} ({student.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block mb-2">Select Group</label>
-            <select
-              value={selectedGroup}
-              onChange={(e) => setSelectedGroup(e.target.value)}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Choose a group...</option>
-              <option value="unassigned" className="font-medium text-yellow-600">
-                ⚠️ Remove from group
-              </option>
-              {groups.map(group => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+      <motion.div variants={itemVariants}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Assign Students
+          </h3>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-lg">
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Student
+              </label>
+              <select
+                value={selectedStudent}
+                onChange={(e) => setSelectedStudent(e.target.value)}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Choose a student...</option>
+                {students.map(student => (
+                  <option key={student.id} value={student.id}>
+                    {student.fullName || student.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Group
+              </label>
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Choose a group...</option>
+                <option value="unassigned">Remove from Group</option>
+                {groups.map(group => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleAssignStudent}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700"
+              >
+                Assign
+              </motion.button>
+            </div>
           </div>
         </div>
-        <button
-          onClick={handleAssignStudent}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-          disabled={!selectedStudent || !selectedGroup}
-        >
-          Assign Student to Group
-        </button>
       </motion.div>
 
       {/* Student List Section */}
-      <motion.div 
-        variants={itemVariants}
-        className="bg-white rounded-2xl shadow-lg p-8"
-      >
+      <motion.div variants={itemVariants}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Student List
@@ -533,9 +584,6 @@ export default function TeacherDashboard() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -564,26 +612,6 @@ export default function TeacherDashboard() {
                       {student.groupId ? 'Assigned' : 'Unassigned'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDeleteStudent(student.id, student.fullName)}
-                      className="text-red-600 hover:text-red-900 focus:outline-none"
-                    >
-                      <svg 
-                        className="h-5 w-5" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth="2" 
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                        />
-                      </svg>
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -591,11 +619,13 @@ export default function TeacherDashboard() {
         </motion.div>
       </motion.div>
 
-      <CreateGroupModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreateGroup={handleCreateGroup}
-      />
+      {/* Modals */}
+      {isCreateModalOpen && (
+        <CreateGroupModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreateGroup={handleCreateGroup}
+        />
+      )}
 
       {selectedGroupReviews && (
         <ReviewList

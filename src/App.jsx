@@ -12,6 +12,7 @@ import { useAuth } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Profile from './pages/Profile';
 import DashboardLayout from './components/layout/DashboardLayout';
+import AllGroups from './pages/AllGroups';
 
 // Loading component
 const LoadingSpinner = () => (
@@ -71,6 +72,24 @@ const StudentRoute = ({ children }) => {
   return children;
 }
 
+const TeacherRoute = ({ children }) => {
+  const { currentUser, userRole, loading } = useAuth();
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  
+  if (!currentUser) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (userRole !== 'teacher') {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
+}
+
 function App() {
   return (
     <>
@@ -111,6 +130,16 @@ function App() {
                           <Profile />
                         </DashboardLayout>
                       </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/all-groups"
+                    element={
+                      <TeacherRoute>
+                        <DashboardLayout>
+                          <AllGroups />
+                        </DashboardLayout>
+                      </TeacherRoute>
                     }
                   />
                   <Route path="/" element={<Navigate to="/dashboard" />} />

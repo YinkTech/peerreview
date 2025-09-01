@@ -140,12 +140,12 @@ export default function Profile() {
               transition={{ delay: 0.2 }}
               className="flex items-center space-x-2"
             >
-              <span className="text-blue-100">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-3">
                 {userRole === 'student' ? 'Student' : 'Teacher'}
               </span>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {/* <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 {formData.email}
-              </span>
+              </span> */}
             </motion.div>
           </div>
         </div>

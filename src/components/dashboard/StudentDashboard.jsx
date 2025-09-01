@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useReview } from '../../contexts/ReviewContext';
 import ReviewForm from '../review/ReviewForm';
-import ReviewSummary from '../review/ReviewSummary';
+import SubmittedReviews from '../review/SubmittedReviews';
 import { motion } from 'framer-motion';
 
 // Add these animation variants at the top
@@ -20,30 +20,6 @@ const cardVariants = {
 
 export default function StudentDashboard() {
   const { currentUser } = useAuth();
-  const { getGroupReviews } = useReview();
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchReviews() {
-      try {
-        if (!currentUser?.groupId) {
-          setReviews([]);
-          setLoading(false);
-          return;
-        }
-        
-        const groupReviews = await getGroupReviews(currentUser.groupId);
-        setReviews(groupReviews);
-      } catch (error) {
-        console.error('Error fetching reviews:', error);
-        setReviews([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchReviews();
-  }, [currentUser, getGroupReviews]);
 
   // Show warning message for both new and unassigned students
   if (!currentUser?.groupId || currentUser?.groupId === 'new') {
@@ -122,25 +98,7 @@ export default function StudentDashboard() {
             className="bg-white rounded-2xl shadow-lg p-8"
           >
             <h3 className="text-xl font-semibold mb-6">Your Recently Submitted Reviews</h3>
-            {loading ? (
-              <div className="flex justify-center">
-                <motion.div
-                  animate={{
-                    rotate: 360
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    ease: "linear"
-                  }}
-                  className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
-                />
-              </div>
-            ) : reviews.length > 0 ? (
-              <ReviewSummary reviews={reviews} />
-            ) : (
-              <p className="text-gray-600 text-center py-8">No reviews submitted yet.</p>
-            )}
+            <SubmittedReviews />
           </motion.div>
         </div>
       )}

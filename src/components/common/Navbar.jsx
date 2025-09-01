@@ -34,6 +34,11 @@ export default function Navbar() {
   if (userRole === 'student') {
     navItems.push({ name: 'Review', path: '/review' });
   }
+  
+  // Add All Groups link for teachers
+  if (userRole === 'teacher') {
+    navItems.push({ name: 'All Groups', path: '/all-groups' });
+  }
 
   return (
     <motion.nav

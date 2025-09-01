@@ -164,10 +164,43 @@ export function ReviewProvider({ children }) {
     }
   }
 
+  async function getReviewsByUser(reviewerId, groupId) {
+    if (!reviewerId || !groupId) {
+      console.warn('getReviewsByUser called with missing parameters:', { reviewerId, groupId });
+      return [];
+    }
+    
+    try {
+      const reviewsRef = collection(db, 'reviews');
+      const q = query(
+        reviewsRef,
+        where('groupId', '==', groupId),
+        where('reviewerId', '==', reviewerId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const reviews = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Sort reviews by timestamp, newest first
+      return reviews.sort((a, b) => {
+        const dateA = a.timestamp?.toDate() || new Date(a.createdAt);
+        const dateB = b.timestamp?.toDate() || new Date(b.createdAt);
+        return dateB - dateA;
+      });
+    } catch (error) {
+      console.error('Error in getReviewsByUser:', error);
+      return [];
+    }
+  }
+
   const value = {
     submitReview,
     getGroupReviews,
     getUserReviews,
+    getReviewsByUser,
     error,
     loading
   };
